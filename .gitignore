@@ -19,3 +19,7 @@ qiskit-ibm.json
 .DS_Store
 
 scratch/
+
+# Generated benchmark suites and datasets (rebuild with qrace-bench)
+data/
+*.qpy

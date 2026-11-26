@@ -46,7 +46,7 @@ implementation is `src/qrace/bench/`.
 | F4 | QAOA MaxCut, random 3-regular graphs | 4–16 (even) | p ∈ {1, 2} | `Z_uZ_v` on every edge | state vector | train |
 | F5 | Hardware-efficient ansatz | 4–16 | reps ∈ {1, 2, 3} | 3 × `Z_i`, 3 × `Z_iZ_{i+1}`, 1 × `X_i` | state vector | train |
 | F6 | Clifford twins of F4/F5 structures | 4–30 | source ∈ {F4 (p=1,2), F5 (reps=1,2,3)} | source observables + 4 signal observables (§5) | stabilizer | train |
-| F7 | Trotterized tilted-field Ising chain | 4–16 | regime ∈ {weak, near-clifford, chaotic}, steps ∈ {1, 2, 4, 6, 8} | every `Z_i` (magnetisation) + 3 × `Z_iZ_{i+1}` | state vector | **held out** |
+| F7 | Trotterized Ising chain: tilted field, plus the pure transverse-field (TFIM) special case | 4–16 | regime ∈ {weak, near-clifford, chaotic, transverse}, steps ∈ {1, 2, 4, 6, 8} | every `Z_i` (magnetisation) + 3 × `Z_iZ_{i+1}` | state vector | **held out** |
 | F8 | Quantum phase estimation | 4–12 | exact ∈ {true, false} | `Z` on each counting qubit and on the target | state vector | **held out** |
 
 ### Construction details
@@ -80,10 +80,35 @@ followed by a final rotation layer; all angles ~ U(0, 2π).
 **F6.** The F4 or F5 circuit with the same `(n, index)` seed, converted to its
 Clifford twin (§5). `twin_of` records the identifier of that source structure.
 
-**F7.** For `steps` Trotter steps: `exp(−i θ_ZZ/2 Z_iZ_{i+1})` on even then odd
-bonds, then `RX(θ_X)` and `RZ(θ_Z)` on every qubit. Regime base angles
-`(θ_X, θ_Z, θ_ZZ)`: weak (0.10, 0.10, 0.10), near-clifford (0.10, 0.05, π/2),
-chaotic (0.53, 0.10, 1.00), each multiplied by an independent factor ~ U(0.95, 1.05).
+**F7.** First-order Trotterization of the Ising chain with open boundaries,
+
+  H = J Σᵢ ZᵢZᵢ₊₁ + hₓ Σᵢ Xᵢ + h_z Σᵢ Zᵢ,
+
+with per-step angles θ_ZZ = 2J·dt, θ_X = 2hₓ·dt, θ_Z = 2h_z·dt. Each of the `steps`
+Trotter steps applies `exp(−i θ_ZZ/2 ZᵢZᵢ₊₁)` on even then odd bonds, then `RX(θ_X)`
+and (if θ_Z ≠ 0) `RZ(θ_Z)` on every qubit. Base angles `(θ_X, θ_Z, θ_ZZ)`:
+
+| Regime | θ_X | θ_Z | θ_ZZ | Model |
+|---|---|---|---|---|
+| weak | 0.10 | 0.10 | 0.10 | tilted field (non-integrable) |
+| near-clifford | 0.10 | 0.05 | π/2 | tilted field (non-integrable) |
+| chaotic | 0.53 | 0.10 | 1.00 | tilted field (non-integrable) |
+| transverse | 0.30 | 0 | 0.30 | transverse-field Ising (TFIM), near the critical point hₓ = J |
+
+Each nonzero angle is multiplied by an independent factor ~ U(0.95, 1.05) so that
+instances differ within a regime (θ_Z stays exactly 0 in the transverse regime).
+
+*Why a tilted field.* The tilted-field chain (h_z ≠ 0) is non-integrable and
+therefore a generic test workload. The three tilted regimes use the same base angles
+as the tilted-field Ising benchmarks published for the LTM AI-QEM Qiskit Function
+[1], which allows a direct comparison with that method. The **transverse** regime
+is the h_z = 0 special case, the transverse-field Ising model, which in one
+dimension is exactly solvable by mapping to free fermions [2]; it is included so the
+blind test also covers the integrable limit.
+
+The F7 suite grid interleaves regimes, step counts and widths (with the 7-width
+grid, instance i uses regime i mod 4, step count i mod 5 and width i mod 7; the
+pairwise-coprime sizes visit all 140 combinations exactly once), so even small suites contain every regime.
 
 **F8.** `m = n − 1` counting qubits and one target qubit prepared in `|1⟩`.
 Hadamards on the counting register, controlled phases `CP(2π φ 2^j)` from
@@ -99,8 +124,8 @@ counting qubit `j` to the target, then the inverse QFT. `exact = true` draws
 | `analytic` | F3 | closed form from the mirror bit string | O(1) |
 
 **Validation (D1.2 acceptance).** `tests/test_ideal_values.py` regenerates every
-family at every parameter value used by the suite grids (36 settings) at 4, 6, 8
-and 10 qubits with three seeds (865 tests) and checks every stored ideal value, and
+family at every parameter value used by the suite grids (41 settings) at 4, 6, 8
+and 10 qubits with three seeds (985 tests) and checks every stored ideal value, and
 every twin's ideal value, against an independent dense state-vector calculation to
 an absolute tolerance of 10⁻⁹. `qrace-bench verify`
 repeats the check on any saved suite.
@@ -140,3 +165,17 @@ SHA-256 checksum of the QPY file).
   halves); its role here is an exactly-known, structurally rich workload.
 * Observables are single Pauli strings; composite observables (e.g. the average
   magnetisation of F7) are linear combinations computed downstream.
+
+## 8. References
+
+1. LTM, "AI-QEM by LTM," IBM Quantum Documentation (Qiskit Functions),
+   https://quantum.cloud.ibm.com/docs/en/functions/ltm-ai-qem (accessed 12 Nov 2026).
+   Benchmark section: Trotterized 2D tilted-field Ising simulations in the regimes
+   small angle (θ_X, θ_Z, θ_ZZ) = (0.1, 0.1, 0.1), near-Clifford (0.1, 0.05, 1.5708)
+   and chaotic (0.53, 0.1, 1.0). Q-RACE uses the same angles on a 1D chain.
+2. P. Pfeuty, "The one-dimensional Ising model with a transverse field,"
+   Annals of Physics 57, 79–90 (1970).
+3. T. Proctor et al., "Measuring the capabilities of quantum computers,"
+   Nature Physics 18, 75–79 (2022). (Mirror circuits, F3.)
+4. P. Czarnik, A. Arrasmith, P. J. Coles, L. Cincio, "Error mitigation with
+   Clifford quantum-circuit data," Quantum 5, 592 (2021). (Clifford twins.)

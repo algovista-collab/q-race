@@ -66,3 +66,11 @@ def test_verify_and_summary(smoke):
     assert report["checked_instances"] == len(smoke)
     rows = summarize(smoke)
     assert [r["family"] for r in rows] == [f"F{i}" for i in range(1, 9)]
+
+
+def test_f7_grid_covers_every_regime_early():
+    pilot = [i for i in build_suite("pilot") if i.family == "F7"]
+    assert {i.params["regime"] for i in pilot} == {"weak", "near-clifford", "chaotic", "transverse"}
+    assert len({i.params["steps"] for i in pilot}) == 5
+    full = SUITE_SPECS["full"].grid("F7")
+    assert len(full) == len({(n, p["regime"], p["steps"]) for n, p in full})  # no repeats

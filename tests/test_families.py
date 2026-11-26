@@ -116,3 +116,18 @@ def test_f6_twin_links_to_source_id():
     source = make_instance("F4", 8, index=4, p=1)
     assert twin.twin_of == source.circuit_id
     assert twin.observables[: len(source.observables)] == source.observables
+
+
+def test_transverse_field_regime_is_pure_tfim():
+    n, steps = 8, 4
+    inst = make_instance("F7", n, index=0, regime="transverse", steps=steps)
+    assert inst.params["theta_z"] == 0.0
+    # Every RZ belongs to a CX-RZ-CX ZZ rotation (one per bond per step): no Z field.
+    assert inst.circuit.count_ops()["rz"] == steps * (n - 1)
+    assert inst.circuit.count_ops()["rx"] == steps * n
+
+
+def test_tilted_regimes_have_longitudinal_field():
+    for regime in ("weak", "near-clifford", "chaotic"):
+        inst = make_instance("F7", 6, index=0, regime=regime, steps=2)
+        assert inst.params["theta_z"] > 0.0

@@ -16,7 +16,7 @@ F3     Mirror circuits                              4-30    analytic      train
 F4     QAOA MaxCut on random 3-regular graphs       4-16    statevector   train
 F5     Hardware-efficient ansatz (random angles)    4-16    statevector   train
 F6     Clifford twins of F4 and F5 structures       4-30    stabilizer    train
-F7     Trotterized tilted-field Ising chain         4-16    statevector   heldout
+F7     Trotterized Ising chain (tilted + TFIM)      4-16    statevector   heldout
 F8     Quantum phase estimation (QFT-based)         4-12    statevector   heldout
 =====  ===========================================  ======  ============  ========
 
@@ -270,11 +270,22 @@ def _f5(n: int, rng: np.random.Generator, reps: int) -> tuple[QuantumCircuit, li
 # --------------------------------------------------------------------------- F7
 
 
-#: Per-step angles (theta_X, theta_Z, theta_ZZ) of the tilted-field Ising regimes.
+#: Per-step angles (theta_X, theta_Z, theta_ZZ) of the Ising regimes. One Trotter step is
+#: exp(-i theta_ZZ/2 sum Z_i Z_{i+1}) followed by RX(theta_X) and RZ(theta_Z) on every qubit,
+#: i.e. a first-order step of H = J sum Z_i Z_{i+1} + h_x sum X_i + h_z sum Z_i with
+#: theta_ZZ = 2 J dt, theta_X = 2 h_x dt, theta_Z = 2 h_z dt.
+#:
+#: * "weak", "near-clifford", "chaotic": tilted field (h_z != 0), non-integrable. Their base
+#:   angles match the tilted-field Ising benchmarks published for LTM's AI-QEM Qiskit
+#:   Function (IBM Quantum documentation, accessed 12 Nov 2026), for direct comparison.
+#: * "transverse": pure transverse-field Ising model (h_z = 0), which in 1D is exactly
+#:   solvable (Pfeuty, Ann. Phys. 57, 79, 1970); theta_X = theta_ZZ puts it near the
+#:   critical point h_x = J. Included as the integrable special case.
 ISING_REGIMES: dict[str, tuple[float, float, float]] = {
     "weak": (0.10, 0.10, 0.10),
     "near-clifford": (0.10, 0.05, float(np.pi / 2)),
     "chaotic": (0.53, 0.10, 1.00),
+    "transverse": (0.30, 0.00, 0.30),
 }
 
 
@@ -289,7 +300,8 @@ def _f7(n: int, rng: np.random.Generator, regime: str, steps: int) -> tuple[Quan
                 _zz_rotation(qc, tzz, a, b)
         for q in range(n):
             qc.rx(tx, q)
-            qc.rz(tz, q)
+            if tz != 0.0:  # pure transverse-field regime has no longitudinal term
+                qc.rz(tz, q)
     obs = [pauli_label(n, {q: "Z"}) for q in range(n)]  # magnetisation = mean of these
     obs += [pauli_label(n, {int(i): "Z", int(i) + 1: "Z"}) for i in _pick(rng, list(range(n - 1)), 3)]
     return qc, obs, {"regime": regime, "steps": steps, "theta_x": tx, "theta_z": tz, "theta_zz": tzz}
@@ -345,7 +357,7 @@ FAMILIES: dict[str, FamilyInfo] = {
     "F4": FamilyInfo("F4", "QAOA MaxCut, 3-regular graphs", "train", "statevector", 4, 16, True),
     "F5": FamilyInfo("F5", "Hardware-efficient ansatz", "train", "statevector", 4, 16),
     "F6": FamilyInfo("F6", "Clifford twins of F4/F5", "train", "stabilizer", 4, 30),
-    "F7": FamilyInfo("F7", "Trotterized tilted-field Ising", "heldout", "statevector", 4, 16),
+    "F7": FamilyInfo("F7", "Trotterized Ising (tilted + TFIM)", "heldout", "statevector", 4, 16),
     "F8": FamilyInfo("F8", "Quantum phase estimation", "heldout", "statevector", 4, 12),
 }
 
@@ -405,7 +417,8 @@ def make_instance(
         F1 ``variant`` in {"ghz", "graph"};
         F2 ``depth``; F3 ``depth``; F4 ``p``; F5 ``reps``;
         F6 ``source`` in {"F4", "F5"} plus that family's parameter (``p`` or ``reps``);
-        F7 ``regime`` in :data:`ISING_REGIMES` and ``steps``; F8 ``exact`` (bool).
+        F7 ``regime`` in :data:`ISING_REGIMES` (three tilted-field regimes and
+        ``"transverse"``) and ``steps``; F8 ``exact`` (bool).
     """
     if family not in FAMILIES:
         raise KeyError(f"unknown family {family!r}")

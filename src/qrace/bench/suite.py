@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import itertools
 import json
+import math
 import platform
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
@@ -54,9 +55,22 @@ def _grid(family: str, widths: Sequence[int]) -> list[tuple[int, dict[str, Any]]
         hea = [(n, {"source": "F5", "reps": r}) for r, n in itertools.product((1, 2, 3), widths)]
         return [x for pair in itertools.zip_longest(qaoa, hea) for x in pair if x is not None]
     if family == "F7":
+        regimes, steps = list(ISING_REGIMES), (1, 2, 4, 6, 8)
+        sizes = (len(regimes), len(steps), len(widths))
+        if all(math.gcd(a, b) == 1 for a, b in itertools.combinations(sizes, 2)):
+            # Pairwise-coprime sizes: index i -> (i mod 4, i mod 5, i mod 7) visits every
+            # combination exactly once (Chinese remainder theorem) and cycles through all
+            # regimes, step counts and widths from the very first instances.
+            return [
+                (
+                    widths[i % len(widths)],
+                    {"regime": regimes[i % len(regimes)], "steps": steps[i % len(steps)]},
+                )
+                for i in range(math.prod(sizes))
+            ]
         return [
             (n, {"regime": reg, "steps": s})
-            for reg, s, n in itertools.product(ISING_REGIMES, (1, 2, 4, 6, 8), widths)
+            for s, n, reg in itertools.product(steps, widths, regimes)  # regime varies fastest
         ]
     if family == "F8":
         return [(n, {"exact": e}) for e, n in itertools.product((True, False), widths)]

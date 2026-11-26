@@ -8,7 +8,7 @@
 | F4 | QAOA MaxCut, 3-regular graphs | 14 | 4-16 | 12-96 | 210 | statevector | train |
 | F5 | Hardware-efficient ansatz | 18 | 4-16 | 3-30 | 126 | statevector | train |
 | F6 | Clifford twins of F4/F5 | 18 | 4-30 | 3-90 | 324 | stabilizer | train |
-| F7 | Trotterized tilted-field Ising | 6 | 4-14 | 6-26 | 72 | statevector | heldout |
+| F7 | Trotterized Ising (tilted + TFIM) | 6 | 4-14 | 6-176 | 72 | statevector | heldout |
 | F8 | Quantum phase estimation | 6 | 4-12 | 12-132 | 44 | statevector | heldout |
 
 State-vector verification (n <= 10): 61 instances, 455 observables, max |deviation| = 1.4e-14, passed = True.

@@ -13,7 +13,7 @@ FAMILY_CASES = (
     + [("F6", {"source": "F5", "reps": r}) for r in (1, 2, 3)]
     + [
         ("F7", {"regime": reg, "steps": st})
-        for reg in ("weak", "near-clifford", "chaotic")
+        for reg in ("weak", "near-clifford", "chaotic", "transverse")
         for st in (1, 2, 4, 6, 8)
     ]
     + [("F8", {"exact": e}) for e in (True, False)]
