@@ -15,7 +15,7 @@ Project lead and mentor: Sumit Tapas Chongder (QIC Centre, IIT Jodhpur).
 Requires Python 3.11 or 3.12.
 
 ```bash
-git clone https://github.com/YOUR-USERNAME/q-race.git
+git clone https://github.com/algovista-collab/q-race.git
 cd q-race
 python -m venv .venv
 .venv\Scripts\activate        # macOS/Linux: source .venv/bin/activate
